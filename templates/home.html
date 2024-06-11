@@ -22,9 +22,9 @@
 	<a href="{% url 'main' %}" class="btn btn-outline-primary float-right">See all</a>
 	<h3 class="section-title">Popular products</h3>
 </header><!-- sect-heading -->
-
-{% for p in products %}
 <div class="row">
+{% for p in products %}
+
 	<div class="col-md-3">
 		<div class="card card-product-grid">
 			<a href="{{ p.get_url }}" class="img-wrap"> <img src="{{ p.image.url }}"> </a>
@@ -35,8 +35,9 @@
 		</div>
 	</div> <!-- col.// -->
 
-</div> <!-- row.// -->
+
 {% endfor %}
+</div> <!-- row.// -->
 </div><!-- container // -->
 </section>
 <!-- ========================= SECTION  END// ========================= -->
