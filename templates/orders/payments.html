@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<section class="section-content padding-y bg">
+<div class="container">
+
+<!-- ============================ COMPONENT 1 ================================= -->
+
+<div class="row">
+	<aside class="col-lg-8">
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">Billing Address</h5>
+
+      </div>
+      <div class="card-body">
+        <p class="card-text">{{ order.full_name }} </p>
+        <p class="card-text">{{ order.address }} </p>
+        <p class="card-text">{{ order.city }} {{ order.state }}</p>
+        <p class="card-text">{{ order.country }}</p>
+        <p class="card-text">{{ order.email }}</p>
+        <p class="card-text">{{ order.phone }}</p>
+        <p class="card-text">
+        {% if order.order_notes %}
+         Order Note: {{ order.order_notes }}
+        {% endif %}
+      </p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">Billing Address</h5>
+      </div>
+      <div class="card-body">
+        <p class="card-text"></p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">Review Products</h5>
+      </div>
+      <div class="card-body">
+        <table class="table table-borderless table-shopping-cart">
+        <thead class="text-muted">
+        <tr class="small text-uppercase">
+          <th scope="col">Product</th>
+          <th scope="col" width="120">Quantity</th>
+          <th scope="col" width="120">Price</th>
+        </tr>
+        </thead>
+        <tbody>
+          {% for item in cartItems %}
+        <tr>
+          <td>
+            <figure class="itemside align-items-center">
+              <div class="aside"><img src="{{ item.product.image.url }}" class="img-sm"></div>
+              <figcaption class="info">
+                <a href="{{ item.product.get_url }}" class="title text-dark">{{ item.product.product_name }}</a>
+                <p class="text-muted small">
+
+                  {% if item.variations.all %}
+
+                    {% for i in item.variations.all %}
+                    {{ i.variation_category | capfirst }}: {{ i.variation_value | capfirst }} <br>
+                    {% endfor %}
+                  {% endif %}
+                </p>
+              </figcaption>
+            </figure>
+          </td>
+          <td>
+            <!-- col.// -->
+                <lable>{{ item.quantity }}</lable>
+          </td>
+          <td>
+            <div class="price-wrap">
+              <var class="price">${{ item.sub_total }}</var>
+              <small class="text-muted"> ${{ item.product.price }} each </small>
+            </div> <!-- price-wrap .// -->
+          </td>
+
+        </tr>
+        {% endfor %}
+
+        </tbody>
+        </table>
+      </div>
+    </div>
+
+	</aside> <!-- col.// -->
+	<aside class="col-lg-4">
+
+		<div class="card">
+		<div class="card-body">
+			<dl class="dlist-align">
+			  <dt>Total price:</dt>
+			  <dd class="text-right">${{ total }}</dd>
+			</dl>
+			<dl class="dlist-align">
+			  <dt>Tax:</dt>
+			  <dd class="text-right"> $0.00</dd>
+			</dl>
+			<dl class="dlist-align">
+			  <dt>Total:</dt>
+			  <dd class="text-right text-dark b"><strong>${{ total }}</strong></dd>
+			</dl>
+			<hr>
+			<p class="text-center mb-3">
+				<img src="{% static './images/misc/payments.png' %}" height="26">
+			</p>
+			<a href="{% url 'checkout' %}" class="btn btn-primary btn-block"> Make payment </a>
+
+			<a href="{% url 'mainStore' %}" class="btn btn-light btn-block">Continue Shopping</a>
+		</div> <!-- card-body.// -->
+		</div> <!-- card.// -->
+
+</aside> <!-- col.// -->
+
+
+</div> <!-- row.// -->
+<!-- ============================ COMPONENT 1 END .// ================================= -->
+
+</div> <!-- container .//  -->
+</section>
+
+{% endblock %}

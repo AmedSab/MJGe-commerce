@@ -11,6 +11,11 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 
+from cart.views import _getOrCreateSessionKey
+from cart.models import Cart, CartItem
+
+import requests
+
 def register(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
@@ -56,8 +61,52 @@ def login(request):
         user = auth.authenticate(email=email, password=password)
 
         if user is not None:
+            cart = Cart.objects.get(cart_id=_getOrCreateSessionKey(request))
+            try:
+                is_cartItem = CartItem.objects.filter(cart=cart).exists()
+                if is_cartItem:
+                    cartItems = CartItem.objects.filter(cart=cart)
+
+                    product_variations = []
+                    for item in cartItems:
+                        variations = item.variations.all()
+                        product_variations.append(list(variations))
+                        # item.user = user
+                        # item.save()
+                    cartItems = CartItem.objects.filter(user=user)
+                    cartItemsVariations = []
+                    id = []
+
+                    for i in cartItems:
+                        # i.variations.all()
+                        cartItemsVariations.append(list(i.variations.all()))
+                        id.append(i.id)
+
+                    for pr in product_variations:
+                        if pr in cartItemsVariations:
+                            index = cartItemsVariations.index(pr)
+                            item_id = id[index]
+                            item = CartItem.objects.get(id=item_id)
+                            item.quantity += 1
+                            item.user = user
+                            item.save()
+                        else:
+                            cartItems = CartItem.objects.filter(cart=cart)
+                            for item in cartItems:
+                                item.user = user
+                                item.save()
+            except:
+                pass
             auth.login(request, user)
-            return redirect('dashboard')
+            url = request.META.get('HTTP_REFERER')
+            try:
+                query = requests.utils.urlparse(url).query
+                params = dict(x.split('=') for x in query.split('&'))
+                if 'next' in params:
+                    nextPage = params['next']
+                    return redirect(nextPage)
+            except:
+                return redirect('dashboard')
         else:
             messages.error(request, 'Invalid login credentials')
             return redirect('login')
@@ -66,6 +115,7 @@ def login(request):
 
 @login_required(login_url = 'login')
 def logout(request):
+    auth.logout(request)
     messages.success(request, 'You have been successfully loged out')
     return redirect('login')
 
