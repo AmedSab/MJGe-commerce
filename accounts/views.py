@@ -1,24 +1,29 @@
-from django.shortcuts import render, redirect
-from .forms import RegisterForm
-from .models import Account
+from django.shortcuts import render, redirect, get_object_or_404
+from .forms import RegisterForm, UserForm, UserProfileForm
+from .models import Account, UserProfile
 from django.contrib import messages, auth
 from django.contrib.auth.decorators import login_required
-
+from orders.models import Order, OrderProduct
+# email
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMessage
 
 from cart.views import _getOrCreateSessionKey
 from cart.models import Cart, CartItem
-
+# /////////////////////////////
+# from django.core.mail import send_mail
+# from django.conf import settings
 import requests
+
 
 def register(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
+
         if form.is_valid():
             first_name = form.cleaned_data['first_name']
             last_name = form.cleaned_data['last_name']
@@ -28,20 +33,22 @@ def register(request):
             user = Account.objects.create_user(first_name=first_name, last_name=last_name, email=email, username=username, password=password)
             user.phone_number = form.cleaned_data['phone_number']
             user.save()
-
-            current_site = get_current_site(request)
+            # غيرت هنا
+            current_site = get_current_site(request).domain
             mail_subject = 'MJG account activation e-mail'
             message = render_to_string('accounts/account_verification_email.html', {
+            # غيرت هنا
                 'user': user,
                 'domain': current_site,
                 'uid': urlsafe_base64_encode(force_bytes(user.pk)),
                 'token': default_token_generator.make_token(user),
+                'protocol': 'https' if request.is_secure() else 'http'
             })
             to_email = email
-            sender = 'aa7235845@gmail.com'
-            send_email = EmailMessage(mail_subject, message, sender, to=[to_email])
+            # sender = 'aa7235845@gmail.com'
+            send_email = EmailMessage(mail_subject, message, to=[to_email])
             send_email.send()
-            # messages.success(request, 'We have sent you a verification email address to activate your account.')
+            messages.success(request, 'We have sent you a verification email address to activate your account.')
 
             return redirect('/accounts/login/?command=verification&email=' +email)
 
@@ -61,7 +68,8 @@ def login(request):
         user = auth.authenticate(email=email, password=password)
 
         if user is not None:
-            cart = Cart.objects.get(cart_id=_getOrCreateSessionKey(request))
+            cart_id=_getOrCreateSessionKey(request)
+            cart = Cart.objects.get(cart_id=cart_id)
             try:
                 is_cartItem = CartItem.objects.filter(cart=cart).exists()
                 if is_cartItem:
@@ -97,6 +105,7 @@ def login(request):
                                 item.save()
             except:
                 pass
+
             auth.login(request, user)
             url = request.META.get('HTTP_REFERER')
             try:
@@ -140,7 +149,15 @@ def activate(request, uidb64, token):
 
 @login_required(login_url = 'login')
 def dashboard(request):
-    return render(request,'accounts/dashboard.html')
+    orders = Order.objects.order_by('-created_at').filter(user_id=request.user.id, is_ordered=True)
+    orders_count = orders.count()
+
+    userprofile = UserProfile.objects.get(user_id=request.user.id)
+    context = {
+        'orders_count': orders_count,
+        'userprofile': userprofile,
+    }
+    return render(request,'accounts/dashboard.html', context)
 
 
 
@@ -203,3 +220,46 @@ def resetPassword(request):
             return redirect('resetPassword')
     else:
         return render(request, 'accounts/resetPassword.html')
+
+
+def my_orders(request):
+    orders = Order.objects.filter(user=request.user, is_ordered=True).order_by('-created_at')
+    context = {
+    'orders': orders,
+    }
+    return render(request, 'accounts/my_orders.html', context)
+
+def edit_profile(request):
+    userprofile = get_object_or_404(UserProfile, user=request.user)
+    if request.method == 'POST':
+        user_form = UserForm(request.POST, instance=request.user)
+        profile_form = UserProfileForm(request.POST, request.FILES, instance=userprofile)
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, 'Your profile has been updated.')
+            return redirect('edit_profile')
+    else:
+        user_form = UserForm(instance=request.user)
+        profile_form = UserProfileForm(instance=userprofile)
+    context = {
+        'user_form': user_form,
+        'profile_form': profile_form,
+        'userprofile': userprofile,
+    }
+
+    return render(request, 'accounts/edit_profile.html', context)
+
+@login_required(login_url='login')
+def order_detail(request, order_id):
+    order_detail = OrderProduct.objects.filter(order__order_number=order_id)
+    order = Order.objects.get(order_number=order_id)
+    subtotal = 0
+    for i in order_detail:
+        subtotal += i.product_price * i.quantity
+    context = {
+        'order_detail': order_detail,
+        'order': order,
+        'subtotal': subtotal,
+    }
+    return render(request, 'accounts/order_detail.html', context)
